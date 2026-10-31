@@ -14,6 +14,7 @@ SITE = """<html><head><meta name="generator" content="WordPress 6.3.1" />
 <script src="/wp-content/plugins/hidden-ver/x.js"></script>
 <link rel="stylesheet" href="/wp-content/themes/twentytwentythree/style.css?ver=1.2">
 </head><body><a href="/about/">About</a><a href="https://other.example/">x</a></body></html>"""
+STATIC = "<html><body><h1>We maintain WordPress sites</h1><p>WordPress updates, plugins and themes.</p></body></html>"
 ABOUT = '<html><body><script src="/wp-content/plugins/only-on-about/a.js?ver=3.0"></script></body></html>'
 
 PLUGINS = {
@@ -36,6 +37,7 @@ class H(BaseHTTPRequestHandler):
         u = urlparse(self.path); q = parse_qs(u.query)
         if u.path == "/": return self._send(200, SITE)
         if u.path == "/about/": return self._send(200, ABOUT)
+        if u.path == "/static/": return self._send(200, STATIC)
         if u.path == "/api/core/version-check/1.7/":
             return self._send(200, json.dumps({"offers": [{"current": "6.8.3"}]}), "application/json")
         if u.path == "/api/plugins/info/1.2/":
@@ -88,6 +90,11 @@ class T(unittest.TestCase):
     def test_not_wordpress(self):
         r = w.check_site(self.base + "/about/x", w.Api(self.base + "/api"))
         self.assertFalse(r["is_wordpress"])
+
+    def test_text_mentioning_wordpress_is_not_wordpress(self):
+        r = w.check_site(self.base + "/static/", w.Api(self.base + "/api"))
+        self.assertFalse(r["is_wordpress"])
+        self.assertEqual(r["rows"], [])
 
     def test_unreachable(self):
         r = w.check_site("http://127.0.0.1:1/", w.Api(self.base + "/api"), timeout=2)
