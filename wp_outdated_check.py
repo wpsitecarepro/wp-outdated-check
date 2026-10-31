@@ -323,7 +323,7 @@ def render_text(report: dict, color: bool = False) -> str:
                              ("Not on WordPress.org (custom, premium or removed), check by hand", [r for r in manual if not r.get("premium")])):
             if group:
                 names = ", ".join(f"{r['slug']} {r['installed'] or '?'}" for r in group)
-                out += ["", title + ":", textwrap.fill(names, 96, initial_indent="  ", subsequent_indent="  ")]
+                out += ["", title + ":", textwrap.fill(names, 96, initial_indent="  ", subsequent_indent="  ", break_on_hyphens=False)]
         s = summary(report)
         out += ["", f"{s['outdated']} outdated, {s['ok']} up to date, {s['unknown'] + s['not-listed']} need a manual look."]
         if s["outdated"]:
