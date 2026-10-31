@@ -102,7 +102,10 @@ def detect(pages: list[str], base: str) -> dict:
     if m:
         found["core"], found["core_source"] = m.group(1).strip(), "generator tag"
 
-    is_wp = bool(re.search(r"/wp-(content|includes)/|wp-json|WordPress", blob))
+    # The word "WordPress" in the text proves nothing (a static site can write about it),
+    # so only look for the files and tags that WordPress itself puts in a page.
+    is_wp = bool(found["core"]) or bool(re.search(
+        r"/wp-(content|includes)/|/wp-json[/\"']|rel=[\"']https://api\.w\.org/", blob, re.I))
     found["is_wordpress"] = is_wp
 
     def collect(kind: str, folder: str):
