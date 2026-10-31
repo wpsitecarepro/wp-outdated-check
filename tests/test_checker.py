@@ -11,6 +11,7 @@ SITE = """<html><head><meta name="generator" content="WordPress 6.3.1" />
 <link rel="stylesheet" href="/wp-content/plugins/akismet/_inc/akismet.css?ver=5.3">
 <script src="/wp-content/plugins/old-abandoned/js/a.js?ver=1.0"></script>
 <script src="/wp-content/plugins/premium-thing/x.js?ver=2.1"></script>
+<script src="/wp-content/plugins/elementor-pro/x.js?ver=3.15.0"></script>
 <script src="/wp-content/plugins/hidden-ver/x.js"></script>
 <link rel="stylesheet" href="/wp-content/themes/twentytwentythree/style.css?ver=1.2">
 </head><body><a href="/about/">About</a><a href="https://other.example/">x</a></body></html>"""
@@ -81,6 +82,14 @@ class T(unittest.TestCase):
         self.assertEqual(rows["hidden-ver"]["status"], "unknown")
         self.assertTrue(rows["old-abandoned"].get("stale"))
         self.assertEqual(rows["twentytwentythree"]["status"], "outdated")
+
+    def test_premium_is_grouped(self):
+        r, rows = self.rows()
+        self.assertTrue(rows["elementor-pro"]["premium"])
+        self.assertFalse(rows["premium-thing"]["premium"])
+        text = w.render_text(r)
+        self.assertIn("Premium, update from the vendor's dashboard:\n  elementor-pro 3.15.0", text)
+        self.assertIn("premium-thing 2.1", text)
 
     def test_deep_finds_more(self):
         _, a = self.rows(0); _, b = self.rows(5)
