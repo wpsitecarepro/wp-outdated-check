@@ -17,18 +17,22 @@ import html
 import json
 import re
 import sys
+import textwrap
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 API_BASE = "https://api.wordpress.org"
 USER_AGENT = f"wp-outdated-check/{__version__} (+https://wpsitecare.pro/)"
 MAX_BYTES = 3_000_000
 STALE_DAYS = 730          # not updated for 2 years: probably abandoned
 HELP_URL = "https://wpsitecare.pro/free-site-check/"
+# Well-known premium extensions: they are not on WordPress.org, so they are updated from the vendor.
+PREMIUM = ("elementor-pro", "jet-", "divi", "js_composer", "revslider", "gravityforms",
+           "advanced-custom-fields-pro", "wp-rocket", "layerslider", "fusion-", "avada")
 
 # ------------------------------------------------------------------ helpers
 
@@ -199,7 +203,9 @@ def judge(name: str, kind: str, current: str | None, info: dict | None) -> dict:
            "status": "unknown", "note": "", "last_updated": None}
     if info is None:
         row["status"] = "not-listed"
-        row["note"] = "Not found on WordPress.org: a premium or custom " + kind + ", or one that was removed. Check it by hand."
+        row["premium"] = name.lower().startswith(PREMIUM)
+        row["note"] = ("Premium " + kind + ": update it from the vendor's dashboard" if row["premium"]
+                       else "Not on WordPress.org (premium, custom or removed)")
         return row
     if info.get("_error"):
         row["status"] = "error"
@@ -303,13 +309,21 @@ def render_text(report: dict, color: bool = False) -> str:
     for e in report["errors"]:
         out.append(e)
     if report["rows"]:
-        rows = sorted(report["rows"], key=lambda r: (ORDER[r["status"]], r["kind"] != "core", r["slug"]))
-        w = max(len(r["slug"]) for r in rows)
-        out.append(f"{'':9}{'name':<{w}}  {'installed':<10} {'latest':<10} status")
-        for r in rows:
-            col = {"outdated": "31;1", "ok": "32", "error": "31"}.get(r["status"], "33")
-            out.append(f"{r['kind']:<9}{r['slug']:<{w}}  {(r['installed'] or '?'):<10} {(r['latest'] or '?'):<10} "
-                       + paint(LABEL[r["status"]], col) + (f"  {r['note']}" if r["note"] else ""))
+        rows = sorted((r for r in report["rows"] if r["status"] != "not-listed"),
+                      key=lambda r: (ORDER[r["status"]], r["kind"] != "core", r["slug"]))
+        manual = [r for r in report["rows"] if r["status"] == "not-listed"]
+        if rows:
+            w = max(len(r["slug"]) for r in rows)
+            out.append(f"{'':9}{'name':<{w}}  {'installed':<10} {'latest':<10} status")
+            for r in rows:
+                col = {"outdated": "31;1", "ok": "32", "error": "31"}.get(r["status"], "33")
+                out.append(f"{r['kind']:<9}{r['slug']:<{w}}  {(r['installed'] or '?'):<10} {(r['latest'] or '?'):<10} "
+                           + paint(LABEL[r["status"]], col) + (f"  {r['note']}" if r["note"] else ""))
+        for title, group in (("Premium, update from the vendor's dashboard", [r for r in manual if r.get("premium")]),
+                             ("Not on WordPress.org (custom, premium or removed), check by hand", [r for r in manual if not r.get("premium")])):
+            if group:
+                names = ", ".join(f"{r['slug']} {r['installed'] or '?'}" for r in group)
+                out += ["", title + ":", textwrap.fill(names, 96, initial_indent="  ", subsequent_indent="  ")]
         s = summary(report)
         out += ["", f"{s['outdated']} outdated, {s['ok']} up to date, {s['unknown'] + s['not-listed']} need a manual look."]
         if s["outdated"]:
